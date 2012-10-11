@@ -1,7 +1,14 @@
+from quiz.models import Quiz
+
+from taggit.managers import TaggableManager
+from polymorphic import PolymorphicModel
+from filer.fields.image import FilerFileField
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from django.contrib.contenttypes.models import ContentType
+
 from courses.fields import PercentField
 
 '''
@@ -20,10 +27,13 @@ TODO:
 9. lecture, unit dates must validate within course dates, if specified.
 '''
 
-class Course(models.Model):
+class Session(PolymorphicModel):
     title = models.CharField(_('title'), max_length=150)
+
+class Course(Session):
     slug = models.SlugField(_('slug'), unique=True)
     # how to stitch category field from quiz to course app?
+    tags = TaggableManager()
     description = models.TextField(_('description'), blank=True, null=True)
     start_date = models.DateField(_('course start date'), auto_now_add=True)
     end_date = models.DateField(_('course end date'), blank=True, null=True)
@@ -31,41 +41,44 @@ class Course(models.Model):
     syllabus = models.TextField(_('course syllabus'), blank=True, null=True)
     software = models.TextField(_('required software/materials'), blank=True, null=True)
     references = models.TextField(_('Recommended Reference Books'), blank=True, null=True)
-    # todo: add good related names
     faculty = models.ManyToManyField(User, related_name='faculty')
-    dependent_courses = models.ManyToManyField('self', null=True, blank=True)
+    dependent_courses = models.ManyToManyField(Session, null=True, blank=True, related_name='depends_on')
 
     def __unicode__(self):
         return u'%s' % self.title
-    
 
-class Unit(models.Model):
+    def get_units(self):
+        return Unit.objects.filter(course=self)
+
+class Unit(Session):
     course = models.ForeignKey(Course)
     description = models.TextField(_('description'), blank=True, null=True)
     start_date = models.DateField(_('unit start date'), auto_now_add=True)
     end_date = models.DateField(_('unit end date'), blank=True, null=True)
 
-class Lecture(models.Model):
+    def get_lectures(self):
+        return Lecture.objects.filter(unit=self)
+
+class Lecture(Session):
     unit = models.ForeignKey(Unit)
     lecture_date = models.DateField(_('When was the lecture held'))
     description = models.TextField(_('description'), blank=True, null=True)
-    # add quiz here, will be a many to many relationship
+    quizzes = models.ManyToManyField(Quiz, related_name='lecture')
 
 class Material(models.Model):
     # can be a doc, video, slide. will be embed using open embed api in page.
+    docs = FilerFileField(related_name='lecture notes')
     # is associated with any course/unit/lecture
-    limit = models.Q(app_label = 'courses', model = 'course') | models.Q(app_label = 'course', model = 'unit') | models.Q(app_label = 'courses', model = 'lecture')
-    content_type = models.ForeignKey(ContentType, limit_choices_to = limit)
-    object_id = models.PositiveIntegerField()
-    content_object = generic.GenericForeignKey('content_type', 'object_id')
+    session = models.ManyToManyField(Session, related_name='used_in')
 
-# add a separate model for video links, associated only with Lecture model
-
+# add a separate model for video links, a hack for Vimeo but will be merged later.
+# can be used with oembed or popcorn.js
+class Vimeo(models.Model):
+    link = models.URLField()
+    session = models.ForeignKey(Session)
+    
 class Enrolment(models.Model):
     student = models.ForeignKey(User)
-    limit = models.Q(app_label = 'courses', model = 'course') | models.Q(app_label = 'course', model = 'unit') | models.Q(app_label = 'courses', model = 'lecture')
-    content_type = models.ForeignKey(ContentType, limit_choices_to = limit)
-    object_id = models.PositiveIntegerField()
-    content_object = generic.GenericForeignKey('content_type', 'object_id')
-    completion =  models.PercentField(default=0)
-    enrolment_date = models.DateTimeField(_('When was the enrolment made'), , auto_now_add=True)
+    session = models.ForeignKey(Session)
+    completion = PercentField(default=0)
+    enrolment_date = models.DateTimeField(_('When was the enrolment made'), auto_now_add=True)
