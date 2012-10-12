@@ -25,6 +25,9 @@ TODO:
 7. still no sense of a student finishing a course, when has a student finished a course?  - new model called CourseProgress
 8. oembed and video integration - skipped, instead, django attachments will be used.
 9. lecture, unit dates must validate within course dates, if specified.
+10. How to ban a student from a course? show a view that student is banned and has to contact site admin etc when he views a course.
+11. all course pages must only be available on signin, or enroll button takes you to signin page(you signin as a student).
+12. Never allow assignment submission past deadline....
 '''
 
 class Session(PolymorphicModel):
@@ -32,7 +35,6 @@ class Session(PolymorphicModel):
 
 class Course(Session):
     slug = models.SlugField(_('slug'), unique=True)
-    # how to stitch category field from quiz to course app?
     tags = TaggableManager()
     description = models.TextField(_('description'), blank=True, null=True)
     start_date = models.DateField(_('course start date'), auto_now_add=True)
