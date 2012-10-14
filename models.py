@@ -34,7 +34,7 @@ class Session(PolymorphicModel):
     title = models.CharField(_('title'), max_length=150)
 
 class Course(Session):
-    slug = models.SlugField(_('slug'), unique=True)
+    slug = models.SlugField(_('slug'))
     tags = TaggableManager()
     description = models.TextField(_('description'), blank=True, null=True)
     start_date = models.DateField(_('course start date'), auto_now_add=True)
@@ -53,6 +53,7 @@ class Course(Session):
         return Unit.objects.filter(course=self)
 
 class Unit(Session):
+    slug = models.SlugField(_('slug'))
     course = models.ForeignKey(Course)
     description = models.TextField(_('description'), blank=True, null=True)
     start_date = models.DateField(_('unit start date'), auto_now_add=True)
@@ -62,6 +63,7 @@ class Unit(Session):
         return Lecture.objects.filter(unit=self)
 
 class Lecture(Session):
+    slug = models.SlugField(_('slug'))
     unit = models.ForeignKey(Unit)
     lecture_date = models.DateField(_('When was the lecture held'))
     description = models.TextField(_('description'), blank=True, null=True)
